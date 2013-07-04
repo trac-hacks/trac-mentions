@@ -91,7 +91,7 @@ setup(
 	url='https://github.com/nothingagency/trac-mentions',
 	download_url='http://pypi.python.org/packages/2.5/%s/%s/%s-%s-py2.5.egg' % \
 	                              (DIST_NM[0], DIST_NM, DIST_NM, latest,),
-	requires = ['trac',  'tractags', ],
+	requires = ['trac', ],
   install_requires = [
       'setuptools>=0.6b1',
       'Trac>=1.0',
