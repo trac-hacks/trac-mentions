@@ -35,15 +35,8 @@ Outstanding tasks are :
 This plugin depends on the following components to be installed:
 
 
-  - [http://trac-hacks.org/wiki/TagsPlugin TracTags]  ,,Since version ''' 0.1.0 ''',, . 
-    Plugin is basically a bit like the tagging plug-in but you can add
-    tags through the hash parsing instead of having to enter them in a
-    separate field. Therefore the functionality of existing tag plug-in
-    is extended to support hash-tags additionally. It's possible to
-    choose between the 2 modes by enabling / disabling this plugin.
-    A migration path is offered where all old Tracs used with the tags
-    plug-in the existing tags would be added as hash tag to the ticket
-    description and then the tags page would still be available.
+  - [http://underscorejs.org/ Underscore.js]  ,,Since version ''' 0.1.0 ''',, .
+    It will not be dustributed with this plugin. See [#Configuration]
 
 
 == Installation ==
@@ -92,8 +85,11 @@ section: `[trac]`, key: `underscorejs_location` Eg:
 {{{#!ini
 
 [trac]
-underscorejs_location = http://underscorejs.org/underscore-min.js
+underscorejs_location = http://underscorejs.org/
 }}}
+
+Notice that script URL in example above will be http://underscorejs.org/underscore-min.js
+
 
 == Bug / feature requests ==
 

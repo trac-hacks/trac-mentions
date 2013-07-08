@@ -137,8 +137,11 @@ class MentionsModule(Component):
             #Create the value for field_cc
             field_cc = req.args.get('field_cc')
             for User in MentionedUsers:
-                if len(re.findall('^' + User + '(?=[\s,]|$)|(?<=[\s,])' + User + '(?=[\s,]|$)', field_cc)) == 0:  #Add the user to CC: if it is not already there
-                    if len(field_cc) != 0:  #Add a ',' if there are already some users in the field
+                #Add the user to CC: if it is not already there
+                if len(re.findall('^' + User + '(?=[\s,]|$)|(?<=[\s,])' + 
+                                  User + '(?=[\s,]|$)', field_cc)) == 0:
+                    #Add a ',' if there are already some users in the field
+                    if len(field_cc) != 0:  
                         field_cc += ', '
                     field_cc += User
             
@@ -149,19 +152,15 @@ class MentionsModule(Component):
         return handler
 
     def post_process_request(self, req, template, data, content_type):
-        self.log.warning("\n\nEntered post_process_request\n\n")
-        
-        self.log.warning('\nreq.args: %s\n', req.args)
-
-        self.log.warning('\ndata: %s\n', data)
-
         if data is not None:
-            if req.args.get('view_time') is not None:    #Check if there is submit data by asking for 1 of its fields
+            #Check if there is submit data by asking for 1 of its fields
+            if req.args.get('view_time') is not None:
 
                 #Read the fields that support wikiformatting
                 CommentField = req.args.get('comment')
                 DescriptionField = req.args.get('field_description')
-                self.log.warning('\nComment: %s\nDesc: %s\n', CommentField, DescriptionField)
+                self.log.warning('\nComment: %s\nDesc: %s\n', 
+                                 CommentField, DescriptionField)
 
                 #Parse the wikiformatting fields to get the mentioned users
                 MentionedUsers = re.findall('(?<=@)[\w]+', CommentField) 
@@ -171,10 +170,6 @@ class MentionsModule(Component):
 
                 self.log.warning('\nFound: \n%s', MentionedUsers)
 
-                #Create the value for field_cc
-                #cc_list = req.args.get('field_cc').split(',')
-                #cc_list = [User.strip() for User in field_cc.split(',')]
-                
                 cc_list = Chrome(self.env).cc_list(req.args.get('field_cc'))
                 
                 for User in MentionedUsers:
@@ -195,11 +190,13 @@ class MentionsModule(Component):
                               'label': 'Cc'}
 
                     if data.get('change_preview') is not None:
-                        self.log.warning('\nchange preview:%s\n', data['change_preview'])
+                        self.log.warning('\nchange preview:%s\n', 
+                                         data['change_preview'])
                         data['change_preview']['fields'].update({'cc': new_cc})
 
                     if data.get('description change') is not None:
-                        self.log.warning('\ndescription change:%s\n', data['description_change'])
+                        self.log.warning('\ndescription change:%s\n',
+                                         data['description_change'])
                         data['description change']['fields'].update({'cc' : new_cc})
                 
                 
