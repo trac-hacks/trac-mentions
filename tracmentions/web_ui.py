@@ -57,7 +57,7 @@ class MentionsModule(Component):
         """Setup user and tags autocompletion"""
 
         if method == 'xhtml':
-            return self._process_stream(req, stream)
+            return stream.filter(lambda s : self._process_stream(req, s))
         return stream
 
     # Protected methods
