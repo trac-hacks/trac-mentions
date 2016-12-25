@@ -1,4 +1,3 @@
-
 = Trac 1.x plug-in that parses any ticket description or comment text with @<Username>. =
 
 When typing in @ a listing of existing users should appear at the cursors position

@@ -1,109 +1,90 @@
-#!/usr/bin/env python
-# -*- coding: UTF-8 -*-
-
-# Copyright 2013-2018 Olemis Lang <olemis at gmail.com>
+# -*- coding: utf-8 -*-
 #
-# License: BSD
 
-r"""Parse any ticket description or comment text with @<Username> or #<tag>.
-
-Copyright 2013-2018 Olemis Lang <olemis at gmail.com>
-Licensed under the BSD License
-"""
-__author__ = 'Olemis Lang'
-
-import pkg_resources
+import re
 
 from genshi.core import START
 from genshi.filters.transform import Transformer
-
 from trac.config import Option
 from trac.core import Component, implements
-from trac.web.api import ITemplateStreamFilter
-from trac.web.chrome import add_script, add_stylesheet, ITemplateProvider, add_script_data
+from trac.web.api import IRequestFilter, ITemplateStreamFilter
+from trac.web.chrome import Chrome, ITemplateProvider, add_script, \
+                            add_script_data, add_stylesheet
 from trac.web.href import Href
-from trac.web import IRequestFilter
-from trac.web.chrome import Chrome
-import re
+
 
 class MentionsModule(Component):
     """Autocomplete @<Username> or #<tag>. Parse any ticket description or
     comment text to leverage hashtags as Trac tags
     """
-    implements(ITemplateProvider, ITemplateStreamFilter, IRequestFilter)
+    implements(IRequestFilter, ITemplateProvider, ITemplateStreamFilter)
 
-    jquery_mentions_location = Option('trac', 'jquery_mentions_location', 
-                                      doc="""Path to jquery mentions plugin""")
-
-    underscore_location = Option('trac', 'underscorejs_location', 
-                                 doc="""Path to underscore.js library""")
+    underscore_location = Option('trac', 'underscorejs_location',
+        'https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/',
+        doc="""Path to underscore.js library""")
 
     @property
     def underscore_href(self):
         return Href(self.underscore_location)
 
-    # ITemplateProvider methods                                             
-    def get_htdocs_dirs(self):                                              
-        return [('mentions',                                                
-             pkg_resources.resource_filename('tracmentions', 'htdocs'))]
+    # ITemplateProvider methods
 
-    def get_templates_dirs(self):                                           
-        return []                                                           
+    def get_htdocs_dirs(self):
+        from pkg_resources import resource_filename
+        return [('mentions', resource_filename('tracmentions', 'htdocs'))]
 
+    def get_templates_dirs(self):
+        return []
 
     # ITemplateStreamFilter methods
 
     def filter_stream(self, req, method, filename, stream, data):
-        """Setup user and tags autocompletion"""
+        """Setup user and tags autocomplete"""
 
         if method == 'xhtml':
-            return stream.filter(lambda s : self._process_stream(req, s))
+            return stream.filter(lambda s: self._process_stream(req, s))
         return stream
 
     # Protected methods
 
     def _process_stream(self, req, stream):
-        """Filter stream to install user / hashtag autocompletion if any
-        of the follwing is found
+        """Filter stream to install user / hashtag autocomplete if any
+        of the following is found
 
           - textarea.wikitext
           - .ticket input#field-owner , .ticket input#field-reporter (users)
         """
         # Pre-process stream to match known targets
-        stream = stream | Transformer('//textarea[contains(@class, "wikitext")]') \
-                          .attr('data-trac-mentions', 'all').end() \
+        stream = stream | \
+                 Transformer('//textarea[contains(@class, "wikitext")]') \
+                 .attr('data-trac-mentions', 'all').end()
+        # Add the users data to page
+        users = []
+        for i, (username, name, email) in enumerate(
+                self.env.get_known_users()):
+            user_object = {
+                'id': (username or ''),
+                'value': '@' + (username or ''),
+                'name': (name or '') + ' (' + (username or '') + ')',
+                'avatar': '/contacts/' + (username or '') + '.gif',
+                'type': 'contact'
+            }
+            users.append(user_object)
 
-        #Add the users data to page
-        i = 0
-        Users = []
-        for i, (username, name, email) in enumerate(self.env.get_known_users()):
-            #self.log.warning("%s \t %s \t %s\n", username, name, email)
-            UserObject = dict({'id': (username or ''),
-                          'value' : '@' + (username or ''),
-                          'name': (name or '') + " (" + (username or '') + ")",
-                          'avatar': "/contacts/" + (username or '') + ".gif",
-                          'type': 'contact'
-                         })
-            Users.append(UserObject)
-
-        #for User in Users:
-         #   self.log.warning("%s\t%s\t%s\t%s\n", User['id'], User['name'], User['avatar'], User['type'])
-
-        add_script_data(req, {
-                              "UserList": Users
-                             })    
+        add_script_data(req, {'UserList': users})
 
         # Add js and css files
-        notfound = True
+        not_found = True
         for kind, data, pos in stream:
-            if kind == START and notfound:
+            if kind == START and not_found:
                 autocomplete = data[1].get('data-trac-mentions')
                 if autocomplete:
-                    notfound = False
+                    not_found = False
                     if self.underscore_location:
-                        add_script(req, self.underscore_href(
-                                'underscore-min.js'))
-                        add_stylesheet(req, 'mentions/jquery.mentionsInput.css')
+                        add_script(req,
+                                   self.underscore_href('underscore-min.js'))
+                        add_stylesheet(req,
+                                       'mentions/jquery.mentionsInput.css')
                         add_script(req, 'mentions/jquery.mentionsInput.js')
                         add_script(req, 'mentions/mentions.js')
                     else:
@@ -111,100 +92,70 @@ class MentionsModule(Component):
                                          "of missing configuration")
             yield kind, data, pos
 
-
-    #IRequestFilter Methods
+    # IRequestFilter Methods
 
     def pre_process_request(self, req, handler):
-        self.log.warning("\n\nEntered pre_process_request\n\n")
-        self.log.warning('\nreq.args: %s\n', req.args)
-        
-        
-        if req.args.get('view_time') is not None:    #Check if there is submit data by asking for 1 of its fields
-                            
-            #Read the fields that support wikiformatting
-            CommentField = req.args.get('comment')
-            DescriptionField = req.args.get('field_description')
-            self.log.warning('\nComment: %s\nDesc: %s\n', CommentField, DescriptionField)
-            
-            #Parse the wikiformatting fields to get the mentioned users
-            MentionedUsers = re.findall('(?<=@)[\w]+', CommentField) 
-            for User in re.findall('(?<=@)[\w]+', DescriptionField):
-                if User not in MentionedUsers:
-                    MentionedUsers.append(User)
-            
-            self.log.warning('\nFound: \n%s', MentionedUsers)
-            
-            #Create the value for field_cc
+        # Read the fields that support wiki formatting
+        comment = req.args.get('comment')
+        description = req.args.get('field_description')
+        if comment or description:
+            # Parse the wiki-formatted fields to get the mentioned users
+            comment_users = re.findall('(?<=@)[\w]+', comment)
+            description_users = re.findall('(?<=@)[\w]+', description)
+            mentioned_users = set(comment_users) | set(description_users)
+
+            # Create the value for field_cc
             field_cc = req.args.get('field_cc')
-            for User in MentionedUsers:
-                #Add the user to CC: if it is not already there
-                if len(re.findall('^' + User + '(?=[\s,]|$)|(?<=[\s,])' + 
-                                  User + '(?=[\s,]|$)', field_cc)) == 0:
-                    #Add a ',' if there are already some users in the field
-                    if len(field_cc) != 0:  
+            for user in mentioned_users:
+                # Add the user to CC: if it is not already there
+                if not re.findall('^' + user + '(?=[\s,]|$)|(?<=[\s,])' +
+                                  user + '(?=[\s,]|$)', field_cc):
+                    # Add a ',' if there are already some users in the field
+                    if field_cc:
                         field_cc += ', '
-                    field_cc += User
-            
-            #Modify the request field
-            self.log.warning('\nmodified field_cc:%s\n', field_cc)
+                    field_cc += user
             req.args['field_cc'] = field_cc
-            
+
         return handler
 
     def post_process_request(self, req, template, data, content_type):
-        if data is not None:
-            #Check if there is submit data by asking for 1 of its fields
-            if req.args.get('view_time') is not None:
+        if data:
+            # Read the fields that support wiki formatting
+            comment = req.args.get('comment')
+            description = req.args.get('field_description')
+            if comment or description:
+                # Parse the wiki-formatted fields to get the mentioned users
+                comment_users = re.findall('(?<=@)[\w]+', comment)
+                description_users = re.findall('(?<=@)[\w]+', description)
+                mentioned_users = set(comment_users) | set(description_users)
 
-                #Read the fields that support wikiformatting
-                CommentField = req.args.get('comment')
-                DescriptionField = req.args.get('field_description')
-                self.log.warning('\nComment: %s\nDesc: %s\n', 
-                                 CommentField, DescriptionField)
+                chrome = Chrome(self.env)
+                field_cc = req.args.get('field_cc')
+                cc_list = set(chrome.cc_list(field_cc))
+                cc_list.update(mentioned_users)
+                field_cc = ', '.join(sorted(cc_list))
 
-                #Parse the wikiformatting fields to get the mentioned users
-                MentionedUsers = re.findall('(?<=@)[\w]+', CommentField) 
-                for User in re.findall('(?<=@)[\w]+', DescriptionField):
-                    if User not in MentionedUsers:
-                        MentionedUsers.append(User)
+                ticket = data['ticket']
+                old_cc_list = chrome.cc_list(ticket._old.get('cc', []))
+                old_field_cc = ', '.join(sorted(old_cc_list))
 
-                self.log.warning('\nFound: \n%s', MentionedUsers)
+                # Add the created field_cc value to data dict
+                if field_cc != req.args.get('field_cc'):
+                    new_cc = {
+                        'new': field_cc,
+                        'old': old_field_cc,
+                        'by': req.authname,
+                        'label': 'Cc'
+                    }
 
-                cc_list = Chrome(self.env).cc_list(req.args.get('field_cc'))
-                
-                for User in MentionedUsers:
-                    if User not in cc_list:
-                        cc_list.append(User)                
-                
-                field_cc = ','.join(cc_list)
-                
-                self.log.warning('\nmodified field_cc:%s\n', field_cc)
+                    if data.get('change_preview'):
+                        data['change_preview']['fields'].update({
+                            'cc': new_cc
+                        })
 
-
-                #Add the created field_cc value to data dict
-                if field_cc != req.args.get('field_cc') and data is not None: 
-                    new_cc = {'new': field_cc, 
-                              #'rendered': <Fragment>, 
-                              'old': req.args.get('field_cc', ''), 
-                              'by': req.authname, 
-                              'label': 'Cc'}
-
-                    if data.get('change_preview') is not None:
-                        self.log.warning('\nchange preview:%s\n', 
-                                         data['change_preview'])
-                        data['change_preview']['fields'].update({'cc': new_cc})
-
-                    if data.get('description change') is not None:
-                        self.log.warning('\ndescription change:%s\n',
-                                         data['description_change'])
-                        data['description change']['fields'].update({'cc' : new_cc})
-                
-                
+                    if data.get('description change'):
+                        data['description change']['fields'].update({
+                            'cc': new_cc
+                        })
 
         return template, data, content_type
-
-
-
-
-
-
