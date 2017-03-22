@@ -11,5 +11,4 @@ jQuery(function ($) {
     },
     resetInput: false
   });
-
 });

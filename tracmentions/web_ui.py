@@ -5,6 +5,7 @@ import re
 
 from genshi.core import START
 from genshi.filters.transform import Transformer
+
 from trac.config import Option
 from trac.core import Component, implements
 from trac.web.api import IRequestFilter, ITemplateStreamFilter
@@ -57,7 +58,7 @@ class MentionsModule(Component):
         # Pre-process stream to match known targets
         stream = stream | \
                  Transformer('//textarea[contains(@class, "wikitext")]') \
-                 .attr('data-trac-mentions', 'all').end()
+                     .attr('data-trac-mentions', 'all').end()
         # Add the users data to page
         users = []
         for i, (username, name, email) in enumerate(
@@ -109,7 +110,7 @@ class MentionsModule(Component):
             for user in mentioned_users:
                 # Add the user to CC: if it is not already there
                 if not re.findall('^' + user + '(?=[\s,]|$)|(?<=[\s,])' +
-                                  user + '(?=[\s,]|$)', field_cc):
+                                          user + '(?=[\s,]|$)', field_cc):
                     # Add a ',' if there are already some users in the field
                     if field_cc:
                         field_cc += ', '
